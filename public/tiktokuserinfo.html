@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok Insight Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --tk-pink: #fe2c55;
+            --tk-cyan: #25f4ee;
+            --bg: #000000;
+            --card-bg: #121212;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            background-color: var(--bg);
+            color: #fff;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .iphone-wrapper {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* Profile Top Card */
+        .profile-card {
+            background: linear-gradient(180deg, #1e1e1e 0%, #121212 100%);
+            border-radius: 32px;
+            padding: 30px 20px;
+            border: 1px solid var(--border);
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .avatar-ring {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            padding: 4px;
+            background: linear-gradient(45deg, var(--tk-pink), var(--tk-cyan));
+        }
+
+        .avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: #000;
+            object-fit: cover;
+            border: 3px solid #121212;
+        }
+
+        .nickname { font-size: 24px; font-weight: 800; margin: 0; }
+        .username { color: #888; font-size: 15px; margin: 5px 0 20px; }
+
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+        }
+
+        .stat-v { font-size: 18px; font-weight: 800; display: block; }
+        .stat-l { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Full Info Sections */
+        .section-header {
+            font-size: 12px;
+            font-weight: 800;
+            color: var(--tk-pink);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 10px 5px;
+        }
+
+        .info-group {
+            background: var(--card-bg);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-row:last-child { border-bottom: none; }
+
+        .key { font-size: 13px; color: #888; font-family: 'Fira Code', monospace; }
+        .val { font-size: 13px; font-weight: 600; text-align: right; word-break: break-all; max-width: 60%; }
+
+        .tag {
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 800;
+        }
+        .tag-true { background: rgba(254, 44, 85, 0.15); color: var(--tk-pink); }
+        .tag-false { background: rgba(255, 255, 255, 0.05); color: #555; }
+
+        #loading {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+<div id="loading">LOADING...</div>
+
+<div id="app" class="iphone-wrapper" style="display:none;">
+    <div id="header-mount"></div>
+
+    <div class="section-header">Core User Data</div>
+    <div id="user-mount" class="info-group"></div>
+
+    <div class="section-header">Extended Stats</div>
+    <div id="stats-mount" class="info-group"></div>
+
+    <div id="extra-mount"></div>
+</div>
+
+<script>
+    const n = (num) => new Intl.NumberFormat().format(num);
+
+    function buildRows(obj) {
+        return Object.entries(obj).map(([key, val]) => {
+            let display = val;
+            if (typeof val === 'boolean') {
+                display = `<span class="tag ${val ? 'tag-true' : 'tag-false'}">${val}</span>`;
+            } else if (val === null || val === "") {
+                display = '<span style="color:#333">null</span>';
+            } else if (key.toLowerCase().includes('time')) {
+                display = new Date(val * 1000).toLocaleString('vi-VN');
+            }
+            return `<div class="data-row"><span class="key">${key}</span><span class="val">${display}</span></div>`;
+        }).join('');
+    }
+
+    async function load() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const uid = urlParams.get('unique_id') || 'hmkne';
+
+        try {
+            const res = await fetch(`https://tikwm.com/api/user/info?unique_id=${uid}`);
+            const { data } = await res.json();
+            
+            // Header
+            document.getElementById('header-mount').innerHTML = `
+                <div class="profile-card">
+                    <div class="avatar-ring">
+                        <img src="${data.user.avatarLarger}" class="avatar">
+                    </div>
+                    <h1 class="nickname">${data.user.nickname}</h1>
+                    <div class="username">@${data.user.uniqueId}</div>
+                    <div class="stats-bar">
+                        <div class="stat-box"><span class="stat-v">${n(data.stats.followingCount)}</span><span class="stat-l">Following</span></div>
+                        <div class="stat-box"><span class="stat-v">${n(data.stats.followerCount)}</span><span class="stat-l">Followers</span></div>
+                        <div class="stat-box"><span class="stat-v">${n(data.stats.heartCount)}</span><span class="stat-l">Hearts</span></div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('user-mount').innerHTML = buildRows(data.user);
+            document.getElementById('stats-mount').innerHTML = buildRows(data.stats);
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('app').style.display = 'flex';
+        } catch (e) {
+            document.getElementById('loading').innerHTML = "ERROR: USER NOT FOUND";
+        }
+    }
+
+    load();
+</script>
+
+</body>
+</html>
